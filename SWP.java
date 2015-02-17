@@ -82,26 +82,37 @@ public class SWP {
  *==========================================================================*/
 
    public void protocol6() {
-        init();
+      int next_frame_to_send = 0;
+
+      init();
 	while(true) {	
          wait_for_event(event);
 	   switch(event.type) {
 	      case (PEvent.NETWORK_LAYER_READY):
-                   break; 
+          from_network_layer(out_buf[next_frame_to_send % NR_BUFS]);
+
+          break; 
 	      case (PEvent.FRAME_ARRIVAL ):
-		   break;	   
-              case (PEvent.CKSUM_ERR):
-      	           break;  
-              case (PEvent.TIMEOUT): 
-	           break; 
+		      break;	   
+        case (PEvent.CKSUM_ERR):
+      	  break;  
+        case (PEvent.TIMEOUT): 
+	        break; 
 	      case (PEvent.ACK_TIMEOUT): 
-                   break; 
-            default: 
-		   System.out.println("SWP: undefined event type = " 
-                                       + event.type); 
-		   System.out.flush();
+          break; 
+        default: 
+		      System.out.println("SWP: undefined event type = " + event.type); 
+		      System.out.flush();
 	   }
       }      
+   }
+
+   static void send_frame(int frame_kind, int frame_nr, int frame_expected, Packet buffer[]){
+      /*Construct and send a data frame.*/
+      PFrame s;
+
+      s.kind = frame_kind;
+      if (frame_kind == data)
    }
 
  /* Note: when start_timer() and stop_timer() are called, 
