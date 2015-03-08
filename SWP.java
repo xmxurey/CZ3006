@@ -109,10 +109,19 @@ public class SWP {
 
    static void send_frame(int frame_kind, int frame_nr, int frame_expected, Packet buffer[]){
       /*Construct and send a data frame.*/
-      PFrame s;
+      PFrame s = new PFrame;
 
       s.kind = frame_kind;
-      if (frame_kind == data)
+      if (frame_kind == PFrame.DATA) 
+        s.info = buffer[frame_nr % NR_BUFS];
+      s.seq = frame_nr;
+      s.ack = (frame_expected + MAX_SEQ) % (MAX_SEQ +1);
+      if (fk == PFrame.NAK)
+        no_nak = false;
+      to_physical_layer(s);
+      if (frame_kind == PFrame.DATA)
+        start_timer(frame_nr % NR_BUFS);
+      stop_ack_timer;
    }
 
  /* Note: when start_timer() and stop_timer() are called, 
