@@ -84,49 +84,70 @@ public class SWP {
      implement your Protocol Variables and Methods below:
  *==========================================================================*/
 
-    static boolean no_nak = true;
-    Packet in_buf[] = new Packet[NR_BUFS];            /* buffers for the inbound stream */
+    //initialize
+    static boolean no_nak=true;
+    boolean arrived[]=new boolean[NR_BUFS];         /* inbound bit map */
+    Packet in_buf[]=new Packet[NR_BUFS];            /* buffers for the inbound stream */
+    static int ack_expected=0;                      /* lower edge of sender's window */
+    static int next_frame_to_send=0;                /* upper edge of sender's window + 1 */
+    int frame_expected=0;                      		/* lower edge of receiver‘s window */
+    int too_far=NR_BUFS;                       		/* upper edge of receiver's window + 1 */
+
 
     public void protocol6() {
-        int next_frame_to_send = 0, frame_expected = 0, ack_expected = 0;
-        int too_far = NR_BUFS;
-        PFrame r = new PFrame();
-        boolean arrived[] = new boolean[NR_BUFS];
-
-        enable_network_layer(NR_BUFS);
-        for (int i = 0; i < NR_BUFS; i++)
-            arrived[i] = false;
-
         init();
-        while (true) {
+        int i;                                      /* index into buffer pool */
+        PFrame r=new PFrame();						/* scratch variable*/
+        enable_network_layer(NR_BUFS);              /* initialize to allow 1st 4 frames to pass */
+
+        for (i = 0; i < NR_BUFS; i++) {
+            arrived[i] = false;
+        }
+
+
+        while(true) {
             wait_for_event(event);
-            switch (event.type) {
+            switch(event.type) {
+                /* accept, save, and transmit a new frame */
                 case (PEvent.NETWORK_LAYER_READY):
-                    from_network_layer(out_buf[next_frame_to_send % NR_BUFS]);
+                    //fetch new Packet when it is ready
+                    from_network_layer(out_buf[next_frame_to_send%NR_BUFS]);
+                    //transmit the frame
                     send_frame(PFrame.DATA, next_frame_to_send, frame_expected, out_buf);
-                    next_frame_to_send = inc(next_frame_to_send);
+                    //advance upper window edge
+                    next_frame_to_send=inc(next_frame_to_send);
                     break;
                 case (PEvent.FRAME_ARRIVAL):
+                    /*fetch incoming frame from physical layer*/
                     from_physical_layer(r);
-                    if (r.kind == PFrame.DATA) {
+                    /* An undamaged frame has arrived.*/
+                    if (r.kind ==PFrame.DATA) {
+                        //check if the arriving frame is in order(lost frame)
                         if ((r.seq != frame_expected) && no_nak)
+                            //if not in order and 1st time lost frame,piggyback nak*/
                             send_frame(PFrame.NAK, 0, frame_expected, out_buf);
-                        else
+                        else{
+                            //if in order or lost frame occured in prev round
+                            //send ack
                             start_ack_timer();
+                            //System.out.println("**********start ack timer!!!"); //debug line
 
-                        if (between(frame_expected, r.seq, too_far) && (arrived[r.seq % NR_BUFS] == false)) {
+                        }
+                        //if frame is within window and hasn't received yet
+                        if (between(frame_expected, r.seq, too_far) && (arrived[r.seq%NR_BUFS] == false) ) {
+                            /* Frames may be accepted in any order.*/
                             arrived[r.seq % NR_BUFS] = true;     /* mark buffer as full*/
                             in_buf[r.seq % NR_BUFS] = r.info;    /*insert data into buffer*/
                             while (arrived[frame_expected % NR_BUFS]) {
-                            /* Pass frames and advance window.*/
+                                /* Pass frames and advance window.*/
                                 to_network_layer(in_buf[frame_expected % NR_BUFS]);
                                 no_nak = true;
                                 arrived[frame_expected % NR_BUFS] = false;
                                 //debug line
                                 //System.out.println("********expected:"+frame_expected+"seq:"+r.seq+"too_far:"+(too_far));
 
-                                frame_expected = inc(frame_expected);    /* advance lower edge of receiver's window */
-                                too_far = inc(too_far);                  /* advance upper edge of receiver's window */
+                                frame_expected=inc(frame_expected);    /* advance lower edge of receiver's window */
+                                too_far=inc(too_far);                  /* advance upper edge of receiver's window */
                                 //System.out.println("============start ack timer!!!"); //debug line
                                 start_ack_timer();                     /*to see if a separate ack is needed */
                             }
@@ -134,39 +155,43 @@ public class SWP {
                     }
                     //selective repeat
                     //resend the frame lost (last correct frame sequence+1)
-                    if ((r.kind == PFrame.NAK) && between(ack_expected, (r.ack + 1) % (MAX_SEQ + 1), next_frame_to_send))
-                        send_frame(PFrame.DATA, (r.ack + 1) % (MAX_SEQ + 1), frame_expected, out_buf);
+                    if((r.kind==PFrame.NAK) && between(ack_expected,(r.ack+1)%(MAX_SEQ+1),next_frame_to_send))
+                        send_frame(PFrame.DATA, (r.ack+1) % (MAX_SEQ + 1), frame_expected, out_buf);
 
 
                     //whenever frame is received
                     while (between(ack_expected, r.ack, next_frame_to_send)) {
                         // nbuffered = nbuffered-1; // delete this line as the window size is fixed
                         stop_timer(ack_expected); /*frame arrived intact*/
-                        ack_expected = inc(ack_expected); /* advance lower edge of sender's window */
+                        ack_expected=inc(ack_expected); /* advance lower edge of sender's window */
                         enable_network_layer(1);  // allow one more frame to fulfill the buffer
                     }
                     break;
+
                 case (PEvent.CKSUM_ERR):
                     if (no_nak)
-                        send_frame(PFrame.NAK, 0, frame_expected, out_buf);
+                        send_frame(PFrame.NAK, 0, frame_expected, out_buf); /* damaged frame */
                     break;
                 case (PEvent.TIMEOUT):
                     if (between(ack_expected, oldest_frame, next_frame_to_send))
-                        send_frame(PFrame.DATA, oldest_frame, frame_expected, out_buf);
+                        send_frame(PFrame.DATA, oldest_frame, frame_expected,out_buf);
+
                     break;
+
                 case (PEvent.ACK_TIMEOUT):
-                    send_frame(PFrame.ACK, 0, frame_expected, out_buf);
+                    send_frame(PFrame.ACK,0,frame_expected, out_buf); /* ack timer expired; send ack */
                     break;
                 default:
                     System.out.println("SWP: undefined event type = " + event.type);
                     System.out.flush();
             }
+
         }
     }
 
     public int inc(int frame_nr) {
         frame_nr++;
-        if (frame_nr > MAX_SEQ)
+        if (frame_nr == MAX_SEQ+1)
             frame_nr = 0;
         return frame_nr;
     }
@@ -184,7 +209,7 @@ public class SWP {
             no_nak = false;
         to_physical_layer(s);
         if (frame_kind == PFrame.DATA)
-            start_timer(frame_nr % NR_BUFS);
+            start_timer(frame_nr);
         stop_ack_timer();
     }
 
@@ -193,10 +218,10 @@ public class SWP {
     }
 
 
- /* Note: when start_timer() and stop_timer() are called, 
-    the "seq" parameter must be the sequence number, rather 
-    than the index of the timer array, 
-    of the frame associated with this timer, 
+ /* Note: when start_timer() and stop_timer() are called,
+    the "seq" parameter must be the sequence number, rather
+    than the index of the timer array,
+    of the frame associated with this timer,
    */
 
     private Timer timer[] = new Timer[NR_BUFS];        /* timer array */
