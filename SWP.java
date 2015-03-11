@@ -184,7 +184,7 @@ public class SWP {
             no_nak = false;
         to_physical_layer(s);
         if (frame_kind == PFrame.DATA)
-            start_timer(frame_nr % NR_BUFS);
+            start_timer(frame_nr);
         stop_ack_timer();
     }
 
