@@ -125,11 +125,9 @@ public class SWP {
                                 no_nak = true;
                                 arrived[frame_expected % NR_BUFS] = false;
                                 //debug line
-                                //System.out.println("********expected:"+frame_expected+"seq:"+r.seq+"too_far:"+(too_far));
 
                                 frame_expected = inc(frame_expected);    /* advance lower edge of receiver's window */
                                 too_far = inc(too_far);                  /* advance upper edge of receiver's window */
-                                //System.out.println("============start ack timer!!!"); //debug line
                                 start_ack_timer();                     /*to see if a separate ack is needed */
                             }
                         }
