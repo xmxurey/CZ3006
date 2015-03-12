@@ -106,11 +106,13 @@ public class SWP {
         while (true) {
             wait_for_event(event);
             switch (event.type) {
+                
                 case (PEvent.NETWORK_LAYER_READY):
                     from_network_layer(out_buf[next_frame_to_send % NR_BUFS]);
                     send_frame(PFrame.DATA, next_frame_to_send, frame_expected, out_buf);
                     next_frame_to_send = inc(next_frame_to_send);
                     break;
+                    
                 case (PEvent.FRAME_ARRIVAL):
                     from_physical_layer(r);
                     if (r.kind == PFrame.DATA) {
@@ -127,6 +129,7 @@ public class SWP {
                                 to_network_layer(in_buf[frame_expected % NR_BUFS]);
                                 no_nak = true;
                                 arrived[frame_expected % NR_BUFS] = false;
+
                                 frame_expected = inc(frame_expected);    
                                 too_far = inc(too_far);                  
                                 start_ack_timer();                     
@@ -146,17 +149,21 @@ public class SWP {
                         enable_network_layer(1);  // allow one more frame to fulfill the buffer
                     }
                     break;
+                    
                 case (PEvent.CKSUM_ERR):
                     if (no_nak)
                         send_frame(PFrame.NAK, 0, frame_expected, out_buf);
                     break;
+                    
                 case (PEvent.TIMEOUT):
                     if (between(ack_expected, oldest_frame, next_frame_to_send))
                         send_frame(PFrame.DATA, oldest_frame, frame_expected, out_buf);
                     break;
+                    
                 case (PEvent.ACK_TIMEOUT):
                     send_frame(PFrame.ACK, 0, frame_expected, out_buf);
                     break;
+                    
                 default:
                     System.out.println("SWP: undefined event type = " + event.type);
                     System.out.flush();
@@ -187,7 +194,8 @@ public class SWP {
             start_timer(frame_nr);
         stop_ack_timer();
     }
-
+    
+    /*Check the frame is within the range*/
     static boolean between(int a, int b, int c) {
         return ((a <= b) && (b < c)) || ((c < a) && (a <= b)) || ((b < c) && (c < a));
     }
@@ -213,7 +221,7 @@ public class SWP {
             swe.generate_timeout_event(seq);
         }
     }
-
+    
     private void start_timer(int seq) {
         stop_timer(seq);
         timer[seq % NR_BUFS] = new Timer();
@@ -233,7 +241,9 @@ public class SWP {
             swe.generate_acktimeout_event();
         }
     }
-
+    
+    /* ack_timer is used to count the time from receiver get the frame until receiver sent back the acknowledgement.
+        The reason for have such a time is in order to avoid unecessary retransmission*/
     private void start_ack_timer() {
         stop_ack_timer();
         ack_timer = new Timer();
