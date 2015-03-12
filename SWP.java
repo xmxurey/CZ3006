@@ -85,13 +85,18 @@ public class SWP {
  *==========================================================================*/
 
     static boolean no_nak = true;
-    Packet in_buf[] = new Packet[NR_BUFS];            /* buffers for the inbound stream */
+    Packet in_buf[] = new Packet[NR_BUFS];         
 
     public void protocol6() {
-        int next_frame_to_send = 0, frame_expected = 0, ack_expected = 0;
+        
+        int ack_expected = 0;
+        int next_frame_to_send = 0;
+        int frame_expected = 0;
         int too_far = NR_BUFS;
-        PFrame r = new PFrame();
+
         boolean arrived[] = new boolean[NR_BUFS];
+
+        PFrame r = new PFrame();
 
         enable_network_layer(NR_BUFS);
         for (int i = 0; i < NR_BUFS; i++)
@@ -115,20 +120,16 @@ public class SWP {
                             start_ack_timer();
 
                         if (between(frame_expected, r.seq, too_far) && (arrived[r.seq % NR_BUFS] == false)) {
-                            arrived[r.seq % NR_BUFS] = true;     /* mark buffer as full*/
-                            in_buf[r.seq % NR_BUFS] = r.info;    /*insert data into buffer*/
+                            arrived[r.seq % NR_BUFS] = true;     
+                            in_buf[r.seq % NR_BUFS] = r.info;    
                             while (arrived[frame_expected % NR_BUFS]) {
-                            /* Pass frames and advance window.*/
+                            // Pass frames and advance window.
                                 to_network_layer(in_buf[frame_expected % NR_BUFS]);
                                 no_nak = true;
                                 arrived[frame_expected % NR_BUFS] = false;
-                                //debug line
-                                //System.out.println("********expected:"+frame_expected+"seq:"+r.seq+"too_far:"+(too_far));
-
-                                frame_expected = inc(frame_expected);    /* advance lower edge of receiver's window */
-                                too_far = inc(too_far);                  /* advance upper edge of receiver's window */
-                                //System.out.println("============start ack timer!!!"); //debug line
-                                start_ack_timer();                     /*to see if a separate ack is needed */
+                                frame_expected = inc(frame_expected);    
+                                too_far = inc(too_far);                  
+                                start_ack_timer();                     
                             }
                         }
                     }
@@ -140,9 +141,8 @@ public class SWP {
 
                     //whenever frame is received
                     while (between(ack_expected, r.ack, next_frame_to_send)) {
-                        // nbuffered = nbuffered-1; // delete this line as the window size is fixed
-                        stop_timer(ack_expected); /*frame arrived intact*/
-                        ack_expected = inc(ack_expected); /* advance lower edge of sender's window */
+                        stop_timer(ack_expected); 
+                        ack_expected = inc(ack_expected); 
                         enable_network_layer(1);  // allow one more frame to fulfill the buffer
                     }
                     break;
@@ -172,7 +172,7 @@ public class SWP {
     }
 
     void send_frame(int frame_kind, int frame_nr, int frame_expected, Packet buffer[]) {
-      /*Construct and send a data frame.*/
+      //Construct and send a data frame.
         PFrame s = new PFrame();
 
         s.kind = frame_kind;
@@ -199,37 +199,32 @@ public class SWP {
     of the frame associated with this timer, 
    */
 
-    private Timer timer[] = new Timer[NR_BUFS];        /* timer array */
+    private Timer timer[] = new Timer[NR_BUFS];        
     private Timer ack_timer = new Timer();
 
     public class FrameTimeoutTask extends TimerTask {
-        int seqnr;
+        int seq;
 
-        //constructor
         public FrameTimeoutTask(int seq) {
-            seqnr = seq;
+            this.seq = seq;
         }
 
-        //run will auto-exec when schedule func is called
-        //implement abstract method
         public void run() {
-            swe.generate_timeout_event(seqnr);
+            swe.generate_timeout_event(seq);
         }
     }
 
     private void start_timer(int seq) {
-        //destroy the current timer
         stop_timer(seq);
-        //reconstruct timer
         timer[seq % NR_BUFS] = new Timer();
-        //FrameoutTask(seq) will be intantiated and exec run() after 300
         timer[seq % NR_BUFS].schedule(new FrameTimeoutTask(seq), 300);
     }
 
     private void stop_timer(int seq) {
-        if (timer[seq % NR_BUFS] != null)
+        if (timer[seq % NR_BUFS] != null){
             timer[seq % NR_BUFS].cancel();
-        timer[seq % NR_BUFS] = null;
+            timer[seq % NR_BUFS] = null;
+        }
     }
 
     public class AckTimeoutTask extends TimerTask {
@@ -246,8 +241,10 @@ public class SWP {
     }
 
     private void stop_ack_timer() {
-        if (ack_timer != null)
+        if (ack_timer != null){
             ack_timer.cancel();
+            ack_timer = null;
+        }
     }
 
 }//End of class
