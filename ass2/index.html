@@ -35,12 +35,26 @@
 
 	function checkApple(){
 		var numOfApple = document.getElementById("apple");
-		if (!isNumber(numOfApple.value)){
+		return validation(numOfApple)
+	}
+	function checkOrange(){
+		var numofOrange = document.getElementById("orange");
+		return validation(numofOrange)
+	}
+	function checkBanana(){
+		var numOfBanana = document.getElementById("banana");
+		return validation(numOfBanana)
+	}
+
+	function validation(numbOfFruit){
+		if (!isNumber(numbOfFruit.value)){
 			alert("The number you input is not valid, please input again.");
-			numOfApple.focus();
-			numOfApple.select();
+			numbOfFruit.focus();
+			numbOfFruit.select();
+			computeCost()
 			return false;	    	
 		} else
+			computeCost()
 			return true;
 	}
 
@@ -161,8 +175,7 @@
 <!-- Compute Total Cost-->
 
       <p>
-        <input type = "button"  value = "Total Cost" 
-               onclick = "computeCost();" />
+        Total Cost:
         <input type = "text"  size = "5"  id = "cost" 
                onfocus = "this.blur();" />
       </p>
@@ -208,6 +221,8 @@
     // corresponding event handler functions
 
     document.getElementById("apple").onchange = checkApple;
+    document.getElementById("orange").onchange = checkOrange;
+    document.getElementById("banana").onchange = checkBanana;
     // -->
     </script>
 
