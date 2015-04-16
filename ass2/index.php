@@ -1,11 +1,9 @@
-<?xml version = "1.0"  encoding = "utf-8" ?>
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTML 1.0 Strict//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
 
 <!-- popcorn3.php - Processes the form described in
      popcorn3.html
      -->
-<html xmlns = "http://www.w3.org/1999/xhtml">
+<html>
   <head>
     <title> Process the index.html form </title>
   </head>
@@ -29,17 +27,49 @@
                      $banana_cost;
       $total_items = $apple + $orange + $banana;
 
+//read data from order.txt 
+      $filename = 'order.txt';
+      // if file_exists($filename)
+      //   $file = fopen($filename, 'r');
+      // else
+      //   exit("Unable to open file ($filename)");
+
+      $fruits = file($filename);
+      //fclose($filename);
+
+//get current amount of each fruit and calculate the new amount
+      $appleString = preg_split("/[\s,]+/", $fruits[0]);
+      $oldApple = $appleString[4];
+      $newApple = $oldApple + $apple;
+
+      $orangeString = preg_split("/[\s,]+/", $fruits[1]);
+      $oldOrange = $orangeString[4];
+      $newOrange = $oldOrange + $orange;
+
+      $bananaString = preg_split("/[\s,]+/", $fruits[2]);
+      $oldBanana = $bananaString[4];
+      $newBanana = $oldBanana + $banana;
+
+//update the amount of fruits in the order.txt
+      $file = fopen($filename, 'w') 
+        or exit("Unable to open file ($filename)");
+
+      fwrite($file, "Total number of apples: $newApple\n");
+      fwrite($file, "Total number of apples: $newOrange\n");
+      fwrite($file, "Total number of apples: $newBanana\n");
+
+      fclose($filename);
+
 // Return the results to the browser in a table
 
     ?>
-    <h4> Customer: </h4>
-    <?php
-      print ("$name <br />");
-    ?>
-    <p /> <p />
 
     <table border = "border">
       <caption> Order Information </caption>
+      <tr align = "center">
+        <th colspan = "2">Customer: </th>
+        <td colspan = "2"><?php print ("$name <br />"); ?></td>
+      </tr>
       <tr>
         <th> Product </th>
         <th> Unit Price </th>
@@ -67,14 +97,17 @@
         <td> <?php printf ("$ %4.2f", $banana_cost); ?>
         </td>
       </tr>
+      <tr align = "center">
+        <th colspan = "2">Total Price: </th>
+        <td colspan = "2"><?php printf("$ %5.2f",$total_price) ?></td>
+      </tr>
+      <tr align = "center">
+        <th colspan = "2">Payment Method: </th>
+        <td colspan = "2"><?php print($payment) ?></td>
+      </tr>
     </table>
     <p /> <p />
 
-    <?php
-      print ("You ordered $total_items fruit items <br />");
-      printf ("Your total bill is: $ %5.2f <br />", $total_price);
-      print ("Your chosen method of payment is: $payment <br />");
-    ?>
   </body>
 </html>
 
